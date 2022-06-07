@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jun  6 18:19:48 2022
+
+@author: sshandu
+"""
+
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+from tensorflow import  keras
+import  matplotlib.pyplot as plt 
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+
+#%%
+# load data
+data = pd.read_csv('//Users/sshandu/Desktop/MECN7118A-MachineLearning/Assignment1/motorTempPredict/measures_v2.csv')
+
+data = data[['u_q','coolant','stator_winding','stator_tooth','stator_yoke','u_d','motor_speed','i_d','i_q','ambient','torque','profile_id','pm']]
+print(data.head(5))
+
+train_data = data.drop(['profile_id'], axis=1, inplace=False)
+#%%
+# Split data
+test_split = 0.2 
+
+xTrain,xTest,yTrain,yTest = train_test_split(train_data.drop(['pm'], axis=1, inplace=False),
+                                             train_data['pm'],test_size=test_split, random_state=100) # dopping the pm column , because we want to apply our x dat
+                                                              
+print(train_data.head(10))
+print(train_data.shape)
+print(train_data.describe().transpose()) # Checking the overall training data set statistics.
+print(train_data.describe().transpose()[['mean', 'std']])#from the stats, feature ranges can be seen.
+
+#%%
+# do a pairplot to check for any colinearity
+plt.figure()
+sns.pairplot(xTest[['stator_winding','stator_tooth','stator_yoke']].assign(pm=yTest.values)) 
+# from the plots, no colinearity issues with the data.
+
+
+#%%
+#scaling the data
+scaler = StandardScaler()
+xTrain_scaled = scaler.fit_transform(xTrain)
+xTest_scaled = scaler.transform(xTest)
+
+#%%
+#Building the model
+model = keras.Sequential([keras.layers.Dense(11,), 
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dense(160, activation='relu'),
+                          keras.layers.Dropout(0.2),
+                          keras.layers.Dense(1,activation='relu')])
+
+# model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01),loss='mmean_absolute_error',metrics=['mean_squared_error'])
+#%%
+
+
+# model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.01),loss='mean_absolute_error')
+model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
+              loss='mean_absolute_error',
+              metrics=['mse', 'mae', 'mape',keras.metrics.RootMeanSquaredError()])  
+ 
+#%%    
+
+#train the model
+history=model.fit(xTrain_scaled,yTrain,validation_split=0.2, epochs=20)
+plt.plot(history.history['mse'])
+plt.plot(history.history['mae'])
+plt.plot(history.history['mape'])
+plt.show()
+
+history = model.fit(xTrain,yTrain.to_numpy(),validation_split=0.2,epochs=5)
+#Plot training curve
+print(history.history.keys())
+fig = plt.figure(figsize=(8,6))
+plt.xlabel('epochs')
+plt.ylabel('loss')
+plt.plot(history.history['loss'],label='loss')
+plt.plot(history.history['val_loss'],label='validation loss')
+plt.legend()
+
+#evaluate the model 
+test_results = model.evaluate(xTest_scaled,yTest,verbose=0)
+print(test_results)
+
+
+#%%
+#use the model 
+
+y_pred = model.predict(xTest_scaled)
+
+print(y_pred)  ## These are predicted values
+xTest['predicted_temperature'] = y_pred
+print(xTest.head(10))
+print(xTest.describe().transpose()[['mean', 'std']])
+
+
+
+

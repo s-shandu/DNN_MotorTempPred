@@ -17,13 +17,63 @@ from sklearn.preprocessing import StandardScaler
 
 #%%
 # load data
-data = pd.read_csv('//Users/sshandu/Desktop/MECN7118A-MachineLearning/Assignment1/motorTempPredict/measures_v2.csv')
+df = pd.read_csv('//Users/sshandu/Desktop/MECN7118A-MachineLearning/Assignment1/motorTempPredict/measures_v2.csv')
 
-data = data[['u_q','coolant','stator_winding','stator_tooth','stator_yoke','u_d','motor_speed','i_d','i_q','ambient','torque','profile_id','pm']]
-print(data.head(5))
+# to see the number of rows and columns in the data set
+print(df.shape)
 
-train_data = data.drop(['profile_id'], axis=1, inplace=False)
+# showing the first few rows and columns of the dataset
+print(df.head())
+df = df[['u_q','coolant','stator_winding','stator_tooth','stator_yoke','u_d','motor_speed','i_d','i_q','ambient','torque','profile_id','pm']]
+print(df.head(5))
+
+print(df.isnull().sum())
+
+## Checking the datatype of each variable (can use print functionto display dat if not you iPython)
+print(df.dtypes)
+print(df.info())
+##checking the unique values in each column
+print(df.nunique())
+##checking the duplicate values in the data
+print(df.duplicated().sum())
+
 #%%
+##Checking the stats of the data
+print(df.describe().transpose())
+print(df.describe().transpose()[['mean', 'std']])#from the stats, feature ranges can be seen.
+print(df.head(5))
+print(df.columns)
+print(df.iloc[:2,:14].values )
+
+
+#  Perfomraning EDA , i.e. Univariate analysis 
+for i in df.columns:
+    df[i].plot(kind='hist')
+    plt.title(f'Distribution of {i}')
+    plt.show()
+
+df[df['profile_id']== 20]['stator_winding'].plot(label = 'stator_winding',figsize = (14,6))
+df[df['profile_id'] == 20]['stator_yoke'].plot(label = 'stator_yoke',figsize = (14,6))
+df[df['profile_id'] == 20]['stator_tooth'].plot(label = 'stator_tooth',figsize = (14,6))
+plt.legend()
+
+'''we can see the variation in stator temperature at different time at profile_id == 20
+All the three stator's variable follows the same trend at different timestamp.'''
+
+#%%
+# checking correlation
+df_corr=df.corr()
+df_corr['pm']
+
+'''' we can see that stator_winding,stator_tooth,stator_yoke are highly positive correlated with pm '''
+
+## ploting the correlation
+plt.figure(figsize=(14,8))
+sns.heatmap(df_corr,annot=True,cmap='viridis')
+#%%
+
+train_data = df.drop(['profile_id'], axis=1, inplace=False)
+
 # Split data
 test_split = 0.2 
 
@@ -74,13 +124,9 @@ model.compile(optimizer=keras.optimizers.Adam(learning_rate=0.001),
 #%%    
 
 #train the model
-history=model.fit(xTrain_scaled,yTrain,validation_split=0.2, epochs=20)
-plt.plot(history.history['mse'])
-plt.plot(history.history['mae'])
-plt.plot(history.history['mape'])
-plt.show()
+history=model.fit(xTrain_scaled,yTrain.to_numpy(),validation_split=0.2, epochs=20)
 
-history = model.fit(xTrain,yTrain.to_numpy(),validation_split=0.2,epochs=5)
+
 #Plot training curve
 print(history.history.keys())
 fig = plt.figure(figsize=(8,6))
